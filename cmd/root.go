@@ -5,9 +5,9 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/trugamr/diro/server"
 )
 
 func init() {
@@ -36,25 +36,14 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			cobra.CheckErr(err)
 		}
+		defer listener.Close()
 
-		// Create file server and serve files
-		fs := http.FileServer(http.Dir(path))
-
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if single {
-				// If required file is not found or is a directory, rewrite to index.html
-				info, err := os.Stat(filepath.Join(path, r.URL.Path))
-				if (err != nil && os.IsNotExist(err)) || (err == nil && info.IsDir()) {
-					r.URL.Path = "/"
-				}
-			}
-
-			fs.ServeHTTP(w, r)
-		})
+		// Create new server and start serving
+		server := server.New(http.Dir(path), single)
 
 		fmt.Println("Listening on", listener.Addr().String())
 
-		err = http.Serve(listener, nil)
+		err = http.Serve(listener, server)
 		if err != nil {
 			cobra.CheckErr(err)
 		}
